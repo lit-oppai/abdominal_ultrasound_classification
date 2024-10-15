@@ -5,16 +5,16 @@ import time
 import shutil
 import matplotlib.pyplot as plt
 import pandas as pd
-from keras.models import Model
-from keras.layers import Dense
-from keras.utils.np_utils import *
-from keras.applications.resnet import ResNet50
-from keras.applications.densenet import DenseNet121,DenseNet169,DenseNet201
-from keras.applications.resnet import ResNet101, ResNet152
-from keras.preprocessing.image import ImageDataGenerator, load_img, img_to_array
-from keras.applications.resnet import preprocess_input
-from keras.applications.vgg16 import preprocess_input as preprocess_input_vgg
-from tensorflow.keras.optimizers import SGD
+from keras._tf_keras.keras.models import Model
+from keras._tf_keras.keras.layers import Dense
+from keras._tf_keras.keras.utils import *
+from keras._tf_keras.keras.applications.resnet import ResNet50
+from keras._tf_keras.keras.applications.densenet import DenseNet121,DenseNet169,DenseNet201
+from keras._tf_keras.keras.applications.resnet import ResNet101, ResNet152
+from keras._tf_keras.keras.preprocessing.image import ImageDataGenerator, load_img, img_to_array
+from keras._tf_keras.keras.applications.resnet import preprocess_input
+from keras._tf_keras.keras.applications.vgg16 import preprocess_input as preprocess_input_vgg
+from keras._tf_keras.keras.optimizers import SGD
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 from sklearn.metrics import accuracy_score, precision_score,classification_report, confusion_matrix
 import seaborn as sn
@@ -24,7 +24,7 @@ import cv2
 def plot_pred_prob(result, result_dir, error_id):
     fig = plt.figure()
     fig.set_size_inches(5, 4)
-    fig_6 = fig.add_subplot('111')
+    fig_6 = fig.add_subplot(111)
     fig.set_tight_layout(True)
     for n in range(len(result['logits'])):
         if n in error_id:
@@ -50,10 +50,11 @@ def plot_pred_prob(result, result_dir, error_id):
             if not os.path.exists(result_dir_new):
                 os.makedirs(result_dir_new)
             img = os.path.join(result_dir_new, img_name)
-            fig.savefig(img, quality=100, bbox_inches='tight')
+            # fix: quality=100 -> dpi=300
+            fig.savefig(img, dpi=300, bbox_inches='tight')
     fig1 = plt.figure()
     fig1.set_size_inches(5, 4)
-    fig_0 = fig.add_subplot('111')
+    fig_0 = fig.add_subplot(111)
     fig1.set_tight_layout(True)
     for n in range(len(result['logits'])):
         if n in error_id:
@@ -70,7 +71,8 @@ def plot_pred_prob(result, result_dir, error_id):
             if not os.path.exists(result_dir_new):
                 os.makedirs(result_dir_new)
             img = os.path.join(result_dir_new, img_name)
-            fig1.savefig(img, quality=100, bbox_inches='tight')
+            # fix: quality=100 -> dpi=300
+            fig1.savefig(img, dpi=300, bbox_inches='tight')
 
 
 def recognize_organs_fc(nn_model):
@@ -92,9 +94,10 @@ def recognize_organs_fc(nn_model):
     predictions = Dense(6, activation='softmax')(base_model.output)
 
     model = Model(inputs=base_model.input, outputs=predictions)
-    weight_file = './finetune/' + nn_model + '/finetune_weights_50_epoch.h5'
+    weight_file = './finetune/' + nn_model + '/finetune_weights_50_epoch.weights.h5'
     assert os.path.exists(weight_file) is True, "Weight path is empty"
-    model.load_weights(weight_file, by_name=False)
+    # fix: remove by_name=False
+    model.load_weights(weight_file)
 
     # preprocess test data
     test_dir = './dataset/img/test/'
@@ -103,7 +106,8 @@ def recognize_organs_fc(nn_model):
     test_labels = []
     test_labels_int = []
     test_img_names = os.listdir(test_dir)
-    start = time.clock()
+    # fix: clock -> perf_counter
+    start = time.perf_counter()
     for i in range(len(test_img_names)):
         img_path = os.path.join(test_dir, test_img_names[i])
         test_imgs_original.append(img_path)
@@ -126,14 +130,15 @@ def recognize_organs_fc(nn_model):
     learning_rate = 0.01
     decay_rate = 0
     momentum = 0.9
-    sgd = SGD(lr=learning_rate, momentum=momentum, decay=decay_rate, nesterov=False)
+    sgd = SGD(learning_rate=learning_rate, momentum=momentum, nesterov=False)
     model.compile(optimizer=sgd, loss='categorical_crossentropy', metrics=['acc'])
 
     # predict with model
     test_logits = model.predict(test_imgs)
     test_predictions = np.argmax(test_logits, axis=1)
     num_acc = 0
-    end = time.clock()
+    # fix: clock -> perf_counter
+    end = time.perf_counter()
     total_time = end - start
     print("Average inference time for one image: {}".format(total_time/len(test_imgs)))
     for i in range(len(test_imgs)):
@@ -167,7 +172,8 @@ def recognize_organs_fc(nn_model):
         os.makedirs(result_dir)
     plt.savefig(
         os.path.join(result_dir, "confusion_matrix_{}_fc.jpg".format(nn_model)),
-        quality=100,
+        # quality=100,
+        dpi=300,
         bbox_inches='tight')
 
 def recognize_organs(nn_model, pca=False):
@@ -222,7 +228,8 @@ def recognize_organs(nn_model, pca=False):
             pred_num = []
             dists = np.zeros((num_test, num_database))
             dist_pred = []
-            start = time.clock()
+            # fix: remove clock.
+            start = time.perf_counter()
 
             for i in range(num_test):
                 # print('image %d: %s' % (i, testlist[i]))
@@ -299,7 +306,8 @@ def recognize_organs(nn_model, pca=False):
             print("Current dist:", dist_category)
             print("Current feature extractor:", nn_model)
             print('k = %d, The correct rate is %.2f%%' % (k, correct_rate * 100))
-            end = time.clock()
+            # fix: remove clock.
+            end = time.perf_counter()
             total_time = end - start
             print("Average inference time for one image: {:.2f}".format(total_time / num_test_new))
 
@@ -380,7 +388,9 @@ def recognize_organs(nn_model, pca=False):
     whether_pca = 'ft_pca' if pca else 'ft'
     plt.savefig(
         os.path.join(result_dir, "confusion_matrix_{}_{}_k_{}_{}.jpg".format(nn_model, whether_pca, best_k, best_dist)),
-        quality=100,
+        # fix: quality -> dpi
+        # quality=100,
+        dpi=300,
         bbox_inches='tight')
     ############################################
 

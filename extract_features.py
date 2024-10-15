@@ -1,8 +1,8 @@
-from keras.applications.resnet import ResNet50
-from keras.applications.densenet import DenseNet121,DenseNet169,DenseNet201
-from keras.applications.resnet import ResNet101, ResNet152
-from keras.preprocessing import image
-from keras.applications.resnet import preprocess_input
+from keras._tf_keras.keras.applications.resnet import ResNet50
+from keras._tf_keras.keras.applications.densenet import DenseNet121,DenseNet169,DenseNet201
+from keras._tf_keras.keras.applications.resnet import ResNet101, ResNet152
+from keras._tf_keras.keras.preprocessing import image
+from keras._tf_keras.keras.applications.resnet import preprocess_input
 import numpy as np
 import os
 
@@ -23,7 +23,8 @@ def extract_features(nn_model, fine_tune=False):
          model = DenseNet201(include_top=False, weights=None, pooling='avg')
       else:
          raise NotImplementedError("The NN model is not implemented!")
-      model.load_weights('./finetune/' + nn_model + '/finetune_weights_50_epoch.h5', by_name=True)
+      # fix: remove by_name=True
+      model.load_weights('./finetune/' + nn_model + '/finetune_weights_50_epoch.weights.h5')
 
    else:
       if nn_model == 'resnet50':

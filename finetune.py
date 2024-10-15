@@ -1,15 +1,15 @@
-from keras.models import Model
-from keras.layers import Dense
-from keras.utils.np_utils import *
-from keras.applications.resnet import ResNet50
-from keras.applications.densenet import DenseNet121,DenseNet169,DenseNet201
-from keras.applications.resnet import ResNet101, ResNet152
-from keras.preprocessing.image import ImageDataGenerator, load_img, img_to_array
-from keras.applications.resnet import preprocess_input
-from tensorflow.keras.optimizers import SGD
+from keras._tf_keras.keras.models import Model
+from keras._tf_keras.keras.layers import Dense
+from keras._tf_keras.keras.utils import *
+from keras._tf_keras.keras.applications.resnet import ResNet50
+from keras._tf_keras.keras.applications.densenet import DenseNet121,DenseNet169,DenseNet201
+from keras._tf_keras.keras.applications.resnet import ResNet101, ResNet152
+from keras._tf_keras.keras.preprocessing.image import ImageDataGenerator, load_img, img_to_array
+from keras._tf_keras.keras.applications.resnet import preprocess_input
+from keras._tf_keras.keras.optimizers import SGD
 import numpy as np
 import os
-from keras.callbacks import TensorBoard, ReduceLROnPlateau
+from keras._tf_keras.keras.callbacks import TensorBoard, ReduceLROnPlateau
 
 
 def finetune(nn_model):
@@ -77,11 +77,16 @@ def finetune(nn_model):
     test_labels = to_categorical(test_labels, 6)
 
     # SGD optimizer
-    sgd = SGD(lr=learning_rate, momentum=momentum, decay=decay_rate, nesterov=False)
+    # 优化器，用来优化网络参数，使得在训练过程中，网络参数的更新方向更符合目标函数。
+    # fix: lr -> learning_rate, remove decay
+    sgd = SGD(learning_rate=learning_rate, momentum=momentum, nesterov=False)
+    print(sgd.get_config())
     # Learning Rate Scheduler
+    # 优化器学习率衰减的策略，减少学习率，使得学习过程更加平滑，避免在训练过程中出现过拟合的情况。
     reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2,
                                   patience=3, min_lr=0)
 
+    # 数据集增强
     train_datagen = ImageDataGenerator(
         preprocessing_function=preprocess_input,
         width_shift_range=0.2,
@@ -92,6 +97,9 @@ def finetune(nn_model):
         data_format='channels_last',
         horizontal_flip=True)
 
+    # Q：训练过程中，为什么需要将数据集进行预处理？
+    # A：预训练的模型，其输出是经过池化层之后的一个向量，其维度为2048，而输入的图片的维度为(224,224,3)，
+    # 测试集的预处理
     test_datagen = ImageDataGenerator(
         preprocessing_function=preprocess_input,
         data_format='channels_last')
@@ -103,20 +111,30 @@ def finetune(nn_model):
 
     predictions = Dense(6, activation='softmax')(base_model.output)
 
+    # 预训练完成
     model = Model(inputs=base_model.input, outputs=predictions)
 
+    # 预训练完成，通过新的全连接层，将base_model的输出作为新的模型的输入，并编译
     model.compile(optimizer=sgd, loss='categorical_crossentropy', metrics=['acc'])
+    # TensorBoard 是一个可视化工具，用于可视化训练过程，包括训练损失、验证损失、训练准确率、验证准确率等。
     tensorboard = TensorBoard(log_dir=os.path.join(save_dir, 'logs_50_epoch'),
                                   histogram_freq=0,
                                   write_graph=True,
                                   write_images=True)
-    history = model.fit_generator(train_generator, steps_per_epoch=image_numbers // batch_size,
+    # 确保数据集足够大
+    # train_generator = train_generator.repeat()
+    # fix：fit_generator -> fit
+    history = model.fit(train_generator, steps_per_epoch=image_numbers // batch_size,
                                       epochs=epochs,
                                       validation_data=validation_generator,
+                                      # fix: batch_size -> len(test_imgs) // batch_size
                                       validation_steps=batch_size,
+                                      # validation_steps=len(test_imgs) // batch_size,
                                       callbacks=[tensorboard, reduce_lr])
+    # test-fixed
+    print('Finetune finished!', history.history)
 
-    model.save_weights(os.path.join(save_dir, 'finetune_weights_50_epoch.h5'))
+    model.save_weights(os.path.join(save_dir, 'finetune_weights_50_epoch.weights.h5'))
 
     history_dict = history.history
 
