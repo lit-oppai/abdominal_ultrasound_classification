@@ -4,7 +4,7 @@ from recognize_organs import recognize_organs, recognize_organs_fc
 from finetune import finetune
 import logging
 
-# 设置日志
+# 设置日志 1
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def process_model(nn_model):
